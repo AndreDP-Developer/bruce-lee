@@ -1,0 +1,51 @@
+import {Game,ROOMS} from './game.js';
+import {Scene} from './scene.js';
+import {Sound} from './audio.js';
+const $=id=>document.getElementById(id),keys=new Set(),touch=new Set();
+const readStorage=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
+const saveStorage=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
+let settings={atmosphere:true,soft:false,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,scanlines:true,...readStorage('bruce-lee-settings',{})};
+let best=readStorage('bruce-lee-best',0),game,scene,sound=new Sound(),lastState='',lastRoom=-1,lastScore=0,lastLives=5,acc=0,last=0,toastTimer,practicePreview=false;
+sound.enabled=readStorage('bruce-lee-sound',true);
+function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3300);}
+function clearInput(){keys.clear();touch.clear();document.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));game?.clearInput();}
+function applySettings(){scene?.settings(settings);for(const id of ['atmosphere','soft','reduced','scanlines'])$(id).checked=!!settings[id];document.querySelector('.scanlines').hidden=!settings.scanlines;saveStorage('bruce-lee-settings',settings);}
+function soundButton(){const b=$('sound');b.innerHTML=`Sound ${sound.enabled?'on':'off'} <span>${sound.enabled?'♪':'♩'}</span>`;b.setAttribute('aria-pressed',String(sound.enabled));b.setAttribute('aria-label',`Sound ${sound.enabled?'on':'off'}`);}
+function toggleSound(){sound.enabled=!sound.enabled;sound.unlock().catch(()=>{});saveStorage('bruce-lee-sound',sound.enabled);soundButton();}
+function pause(){if(!game)return;if(game.state==='playing'){game.pause();clearInput();practicePreview=false;}else if(game.state==='paused'){game.resume();sound.unlock().catch(()=>{});}updateHud();}
+function play(){if(!game)return;document.querySelectorAll('dialog[open]').forEach(d=>d.close());clearInput();sound.unlock().catch(()=>{});game.start();practicePreview=false;acc=0;updateHud();$('start').blur();}
+function showDialog(id){if(!game)return;if(document.fullscreenElement)document.exitFullscreen().catch(()=>{});if(game.state==='playing')game.pause();clearInput();$(id).showModal();updateHud();}
+async function fullscreen(){try{if(document.fullscreenElement)await document.exitFullscreen();else await $('cabinet').requestFullscreen();}catch{toast('Fullscreen is not available in this browser.');}}
+function updateHud(){if(!game)return;
+ const s=game.snapshot();$('score').textContent=String(s.score).padStart(6,'0');if(!s.assisted&&s.score>best){best=s.score;saveStorage('bruce-lee-best',best);}$('best').textContent=String(best).padStart(6,'0');$('lives').textContent=Array(Math.min(9,s.lives)).fill('●').join(' ');$('lives').title=`${s.lives} lives`;$('lives').setAttribute('aria-label',`${s.lives} lives`);
+ $('room-number').textContent=`${String(s.room).padStart(2,'0')} / 20`;$('room-name').textContent=s.name;$('zone').textContent=ROOMS[s.room-1][1];$('lantern-count').textContent=s.lanternsRemaining?`${s.lanternsRemaining} lanterns`:'Lanterns cleared';$('hint').textContent=game.hint();$('testbadge').hidden=!s.assisted;$('pause').textContent=s.state==='playing'?'Ⅱ':'▷';$('pause').setAttribute('aria-label',s.state==='playing'?'Pause game':'Resume game');
+ const dialogOpen=!!document.querySelector('dialog[open]');$('overlay').hidden=s.state==='playing'||dialogOpen||(s.state==='paused'&&practicePreview);
+ if(s.state!==lastState){lastState=s.state;if(s.state==='title'){
+  $('eyebrow').innerHTML='<i></i> 1984 · THE DRAGON RETURNS';$('title').innerHTML='BRUCE <span>LEE</span><b aria-hidden="true">李小龍</b>';$('intro-text').innerHTML='A fortress of secrets. A legend with no equal.<br>Twenty chambers stand between you and the wizard.';$('start').innerHTML='Enter the fortress <span>→</span>';$('start-hint').textContent='PRESS ENTER · SINGLE PLAYER';
+ }else if(s.state==='paused'){
+  $('eyebrow').textContent='TAKE A BREATH';$('title').innerHTML='BE LIKE <span>WATER.</span>';$('intro-text').innerHTML='Your journey is waiting.<br>Press Enter or continue when you’re ready.';$('start').innerHTML='Continue the journey <span>→</span>';$('start-hint').textContent=`CHAMBER ${s.room} / 20 · ${s.name.toUpperCase()}`;
+ }else if(s.state==='gameover'){
+  $('eyebrow').textContent='FALL. RISE. BEGIN AGAIN.';$('title').innerHTML='THE NEXT <span>ROUND.</span>';$('intro-text').innerHTML=`Your score: ${s.score.toLocaleString()}.<br>The fortress awaits another attempt.`;$('start').innerHTML='Try again <span>→</span>';$('start-hint').textContent='PRESS ENTER · FIVE FRESH LIVES';
+ }}
+ if(lastRoom!==s.room){if(lastRoom!==-1&&s.state==='playing')toast(s.room===20?'The wizard has fallen. The treasure is yours!':`Chamber ${s.room} · ${s.name}`);lastRoom=s.room;}
+ if(s.lives<lastLives&&s.state==='playing')toast(`${s.lives} ${s.lives===1?'life':'lives'} remaining · keep going`);lastLives=s.lives;lastScore=s.score;
+}
+const mappings={ArrowLeft:'left',KeyA:'left',ArrowRight:'right',KeyD:'right',ArrowUp:'up',KeyW:'up',ArrowDown:'down',KeyS:'down',KeyX:'jump',Space:'attack',KeyZ:'attack',ShiftLeft:'attack',ShiftRight:'attack'};
+addEventListener('keydown',e=>{if(e.target instanceof HTMLInputElement||e.target instanceof HTMLSelectElement)return;if(document.querySelector('dialog[open]'))return;if(mappings[e.code]){e.preventDefault();keys.add(e.code);}if(e.repeat)return;if(e.code==='Enter'){e.preventDefault();play();}if(e.code==='KeyP'||e.code==='Escape'){e.preventDefault();pause();}if(e.code==='KeyM')toggleSound();if(e.code==='KeyF'){e.preventDefault();fullscreen();}if(e.code==='F2'){e.preventDefault();showDialog('rooms-dialog');}});
+addEventListener('keyup',e=>keys.delete(e.code));addEventListener('blur',()=>{clearInput();game?.pause();updateHud();});document.addEventListener('visibilitychange',()=>{if(document.hidden){clearInput();game?.pause();updateHud();}});
+let padStart=false;function input(){const i={};for(const k of keys)i[mappings[k]]=true;for(const k of touch)i[k]=true;const p=navigator.getGamepads?.()?.find(p=>p&&p.connected);if(p){i.left||=p.axes[0]<-.3||p.buttons[14]?.pressed;i.right||=p.axes[0]>.3||p.buttons[15]?.pressed;i.up||=p.axes[1]<-.3||p.buttons[12]?.pressed;i.down||=p.axes[1]>.3||p.buttons[13]?.pressed;i.jump||=p.buttons[0]?.pressed;i.attack||=p.buttons[1]?.pressed||p.buttons[2]?.pressed;const start=!!p.buttons[9]?.pressed;if(start&&!padStart){if(game.state==='title'||game.state==='gameover')play();else pause();}padStart=start;}else padStart=false;return i;}
+document.querySelectorAll('[data-key]').forEach(b=>{b.addEventListener('pointerdown',e=>{e.preventDefault();b.setPointerCapture(e.pointerId);touch.add(b.dataset.key);b.classList.add('pressed');sound.unlock().catch(()=>{});});const end=()=>{touch.delete(b.dataset.key);b.classList.remove('pressed');};b.addEventListener('pointerup',end);b.addEventListener('pointercancel',end);b.addEventListener('lostpointercapture',end);});
+$('start').onclick=play;$('pause').onclick=pause;$('sound').onclick=toggleSound;$('fullscreen').onclick=fullscreen;$('help').onclick=()=>showDialog('help-dialog');$('settings').onclick=()=>showDialog('settings-dialog');$('rooms').onclick=()=>showDialog('rooms-dialog');
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());document.querySelectorAll('dialog').forEach(d=>{d.addEventListener('close',()=>{clearInput();lastState='';updateHud();});d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}});});
+for(const id of ['atmosphere','soft','reduced','scanlines'])$(id).onchange=()=>{settings[id]=$(id).checked;applySettings();};
+$('restart').onclick=()=>{game.reset();practicePreview=false;lastState='';lastRoom=-1;$('settings-dialog').close();updateHud();};
+$('invincible').onchange=()=>{game.invincible=$('invincible').checked;if(game.invincible)game.assisted=true;updateHud();};
+function selectRoom(id){game.selectRoom(id);practicePreview=true;game.invincible=$('invincible').checked;lastState='';lastRoom=-1;$('rooms-dialog').close();clearInput();toast('Practice room ready · press Enter to play');updateHud();}
+function animate(now){requestAnimationFrame(animate);if(!game||!scene)return;const dt=Math.min(.08,(now-(last||now))/1000);last=now;const controls=input();if(game.state==='playing'&&!document.hidden){acc+=dt;let frames=0;while(acc>=.02&&frames<4){game.step(controls);acc-=.02;frames++;if(game.state!=='playing')break;}}else acc=0;sound.running=game.state==='playing';sound.update();scene.update(game,now/1000,settings.reduced);updateHud();}
+async function init(){try{
+ const response=await fetch(`${import.meta.env.BASE_URL}data/start.json`);if(!response.ok)throw Error('Could not load the game data.');const initial=await response.text();scene=new Scene($('viewport'));game=new Game(initial,{audio:sound.attach});applySettings();soundButton();$('start').disabled=false;
+ $('room-grid').innerHTML=ROOMS.map(([name],i)=>`<button class="room-card" data-room="${i}" aria-label="Practice chamber ${i+1}: ${name}"><img src="./rooms/${i}.png" alt="" loading="lazy"><span><b>${String(i+1).padStart(2,'0')}</b>${name}</span></button>`).join('');document.querySelectorAll('[data-room]').forEach(b=>b.onclick=()=>selectRoom(+b.dataset.room));
+ window.bruceLee={snapshot:()=>game.snapshot(),pause:()=>{game.pause();updateHud();},resume:()=>{game.resume();updateHud();},selectRoom,step:(controls={})=>{game.step(controls);updateHud();},settings:()=>({...settings})};
+ const requested=Number(new URLSearchParams(location.search).get('room'));if(requested>=1&&requested<=20)selectRoom(requested-1);updateHud();requestAnimationFrame(animate);
+ }catch(error){console.error(error);$('eyebrow').textContent='THE FORTRESS COULD NOT LOAD';$('title').innerHTML='A SMALL <span>SETBACK.</span>';$('intro-text').textContent='Please reload the page. This game needs WebGL2 and browser hardware acceleration.';$('start').textContent='Reload';$('start').disabled=false;$('start').onclick=()=>location.reload();$('start-hint').textContent=error.message;}}
+init();
