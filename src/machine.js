@@ -17,7 +17,7 @@ export function createMachine({pixel=()=>{},blit=()=>{},audio}={}){
   joystick(c){c.joystick={setSetJoystick1(fn){joy1=fn;},setSetJoystick2(fn){joy2=fn;}};},
   keyboard(c){c.keyboard={setSetKeyMatrix(fn){keys=fn;}};}
  },attachments:[]});
- c64.frame=()=>{for(let j=0;j<19656;j++){c64.runloop.getState().cycle++;c64.cpu.tick();c64.vic.tick();c64.cias.tick();c64.sid.tick();c64.tape.tick();}};
+ c64.frame=()=>{const audioTick=c64.audio.tick;for(let j=0;j<19656;j++){c64.runloop.getState().cycle++;c64.cpu.tick();c64.vic.tick();c64.cias.tick();c64.sid.tick();c64.tape.tick();if(audioTick)audioTick();}c64.audio.endFrame?.();};
  c64.joy=(bits,port=2)=>(port===1?joy1:joy2)((~bits)&255);
  c64.keys=keys;
  return c64;

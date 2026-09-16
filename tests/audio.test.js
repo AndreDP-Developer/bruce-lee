@@ -1,17 +1,13 @@
-import {test} from 'node:test';
-import assert from 'node:assert/strict';
-import {phrase,Music} from '../src/music.js';
-import {Sound} from '../src/audio.js';
-class Param{constructor(){this.value=0;}setValueAtTime(v){this.value=v;}setTargetAtTime(v){this.value=v;}exponentialRampToValueAtTime(v){assert.ok(v>0);this.value=v;}}
-class Node{constructor(){for(const key of ['gain','frequency','pan','delayTime','Q','threshold','knee','ratio'])this[key]=new Param();}connect(){}disconnect(){}start(t){this.started=t??0;}stop(){this.stopped=true;}}
-class Context{constructor(){this.currentTime=0;this.sampleRate=8000;this.destination=new Node();this.oscillators=[];}createGain(){return new Node();}createDelay(){return new Node();}createStereoPanner(){return new Node();}createDynamicsCompressor(){return new Node();}createBiquadFilter(){return new Node();}createBufferSource(){return new Node();}createOscillator(){const n=new Node();this.oscillators.push(n);return n;}createBuffer(c,n){return {getChannelData:()=>new Float32Array(n)};}async resume(){}}
-
-test('32 phrases vary, stay in musical range, and leave space between melodies',()=>{
- const variants=new Set();for(let i=0;i<32;i++){const events=phrase(i);variants.add(JSON.stringify(events));assert.ok(events.length>20);assert.ok(events.every(e=>e.beat>=0&&e.beat<32&&e.midi>=38&&e.midi<=90&&e.level<.3));assert.ok(events.every((e,j)=>j===0||e.beat>=events[j-1].beat));assert.ok(events.filter(e=>e.voice==='flute').length<16);}assert.equal(variants.size,32);
+import {test} from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import {createHash}from 'node:crypto';import{Game}from '../src/game.js';import{Sound,SidOutput}from '../src/audio.js';
+const sound=new Sound();let blocks=[];sound.enqueue=block=>blocks.push(block);const game=new Game(fs.readFileSync(new URL('../public/data/start.json',import.meta.url),'utf8'),{audio:sound.attach});
+function capture(frames,input){blocks=[];for(let f=0;f<frames;f++)game.step(input);const data=Float32Array.from(blocks.flatMap(b=>Array.from(b)));const rms=Math.sqrt(data.reduce((s,v)=>s+v*v,0)/data.length);assert.ok(rms>.0001,`Audible PCM expected, RMS=${rms}`);assert.ok(data.every(Number.isFinite));assert.ok(data.every(v=>Math.abs(v)<=1));return createHash('sha256').update(new Uint8Array(data.buffer)).digest('hex');}
+test('native running, punching, collection and damage generate distinct audible sample streams',()=>{
+ const hashes=[];game.reset();hashes.push(capture(120,{right:true}));game.reset();hashes.push(capture(120,{attack:true}));
+ game.reset();const l=game.lanterns()[0];for(const [a,v]of [[0x9e,l.col*4+12],[0xa1,l.row*16+12],[0xb6,3],[0xbf,0],[0xce,0]])game.write(a,v);hashes.push(capture(40,{}));assert.equal(game.read(l.address),0);
+ game.reset();hashes.push(capture(950,{}));assert.ok(game.player.health<36||game.lives<5);assert.equal(new Set(hashes).size,4);
 });
-test('music scheduler stops scheduled voices on pause and resumes without backlog',()=>{
- const c=new Context(),m=new Music(c,c.destination);m.setActive(true);m.update();assert.ok(m.nodes.size>0);const nodes=[...m.nodes];m.setActive(false);assert.ok(nodes.every(n=>n.stopped));assert.equal(m.queue.length,0);c.currentTime=400;m.setActive(true);m.update();assert.ok(m.queue.every(e=>e.time>=400));
-});
-test('sound uses a noise channel, respects volume and mute, and creates one context',async()=>{
- globalThis.window={AudioContext:Context};const s=new Sound();await s.unlock();const context=s.context;await s.unlock();assert.equal(s.context,context);s.running=true;s.regs[24]=15;s.regs[4]=128;s.volumes[0]=1;s.update();assert.equal(s.voices[0].tone.gain.value,0);assert.ok(s.voices[0].noiseGain.gain.value>0);assert.ok(s.music.active);s.regs[4]=64;s.update();assert.ok(s.voices[0].tone.gain.value>0);assert.equal(s.voices[0].noiseGain.gain.value,0);s.effectsVolume=0;s.musicEnabled=false;s.update();assert.equal(s.effects.gain.value,0);assert.equal(s.music.active,false);s.enabled=false;s.update();assert.equal(s.master.gain.value,0);delete globalThis.window;
+test('pulse width and noise pitch alter the generated effect instead of sharing a generic tone',()=>{
+ function render(control,freq,width){const s=new SidOutput();s.volumes[0]=1;s.regs[24]=15;s.regs[4]=control;s.regs[0]=freq&255;s.regs[1]=freq>>8;s.regs[2]=width&255;s.regs[3]=width>>8;return Array.from({length:1000},()=>s.sample());}
+ assert.notDeepEqual(render(64,5000,512),render(64,5000,2048));assert.notDeepEqual(render(128,2000,0),render(128,10000,0));
+ const s=new SidOutput();for(let i=0;i<19656;i++)s.tick();assert.equal(s.take().length,882);assert.equal(s.take().length,0);
 });

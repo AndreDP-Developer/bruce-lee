@@ -40,7 +40,9 @@ The presentation is new Three.js code, using the Three.js build copied from the 
 
 `public/data/start.json` is a native single-player starting checkpoint, with the trainer disabled and five lives. The game banks out system ROMs; BASIC, KERNAL and character ROM files are not included. The Three.js renderer uses the original 320 × 176 playfield. Original mode disables the atmospheric scenery; pixel smoothing is a separate option.
 
-Sound uses softened, low-pass-filtered effects driven by the game’s SID writes, with actual noise for noise events. An original evolving pentatonic score combines gentle plucked strings, flute-like tones and sparse bell accompaniment at 76 BPM. Phrase contours, harmony, voicing and rests vary rather than repeating a short loop. Settings provide separate music/effects volumes and a music switch; all audio pauses with gameplay. No audio is copied from YouTube. The requested sound reference is [this C64 longplay](https://www.youtube.com/watch?v=gRGGWWvvO0o); matching its soundtrack by ear has not been verified. The runtime is not cycle-exact and SID filtering is not reproduced, so audio and timing are not claimed to be hardware-perfect.
+Sound now renders the native SID register/envelope stream into audio samples during CPU execution. It preserves pulse width, triangle and saw waveforms, pitch-dependent noise, and within-frame register changes. Collection, movement and combat retain the original game's sound triggers. Background music has been removed from playback while effects are being corrected. Settings retain an effects volume slider.
+
+The requested game-sound reference is https://www.youtube.com/watch?v=gRGGWWvvO0o; the music reference for future work is https://www.youtube.com/watch?v=B2z_igQI4yk. No audio was copied from these videos. Exact matching by ear has not been verified. This is still an approximate SID renderer: analog filter behaviour, oscillator sync and ring modulation are not reproduced.
 
 ## Verification
 
