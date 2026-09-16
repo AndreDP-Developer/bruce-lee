@@ -1,3 +1,4 @@
+import {BackgroundTrack} from './music.js';
 // Sample the original SID register/envelope stream during CPU execution.
 // This preserves short effects, pulse width, pitch-dependent noise and sweeps.
 export class SidOutput {
@@ -22,12 +23,12 @@ export class SidOutput {
 }
 
 export class Sound {
- constructor(){this.synth=new SidOutput();this.enabled=true;this.running=false;this.effectsVolume=.8;this.sources=new Set();this.nextTime=0;}
+ constructor(){this.music=new BackgroundTrack();this.musicEnabled=true;this.musicVolume=.12;this.synth=new SidOutput();this.enabled=true;this.running=false;this.effectsVolume=.8;this.sources=new Set();this.nextTime=0;}
  attach=(c)=>{c.audio={reset:()=>{this.synth=new SidOutput();},onRegWrite:(r,v)=>{this.synth.regs[r]=v;},setVoiceVolume:(i,v)=>{this.synth.volumes[i]=v;},tick:()=>this.synth.tick(),endFrame:()=>this.enqueue(this.synth.take())};};
- async unlock(){if(!this.context){const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=this.context=new C();this.master=c.createGain();this.master.gain.value=0;const filter=c.createBiquadFilter();filter.type='lowpass';filter.frequency.value=11000;filter.Q.value=.5;this.master.connect(filter);filter.connect(c.destination);}await this.context.resume();}
+ async unlock(){this.music.unlock();if(!this.context){const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=this.context=new C();this.master=c.createGain();this.master.gain.value=0;const filter=c.createBiquadFilter();filter.type='lowpass';filter.frequency.value=11000;filter.Q.value=.5;this.master.connect(filter);filter.connect(c.destination);}await this.context.resume();}
  enqueue(samples){if(!this.context||!this.running||!this.enabled||!samples.length)return;const c=this.context;
   if(this.nextTime<c.currentTime||this.nextTime>c.currentTime+.15)this.nextTime=c.currentTime+.025;
   const buffer=c.createBuffer(1,samples.length,44100);buffer.getChannelData(0).set(samples);const source=c.createBufferSource();source.buffer=buffer;source.connect(this.master);source.start(this.nextTime);this.nextTime+=samples.length/44100;this.sources.add(source);source.onended=()=>{source.disconnect();this.sources.delete(source);};
  }
- update(){if(!this.context)return;const active=this.enabled&&this.running;this.master.gain.setTargetAtTime(active?this.effectsVolume:0,this.context.currentTime,.006);if(!active){for(const source of this.sources){try{source.stop();}catch{}}this.sources.clear();this.nextTime=0;}}
+ update(){this.music.update(this.enabled&&this.running&&this.musicEnabled,this.musicVolume);if(!this.context)return;const active=this.enabled&&this.running;this.master.gain.setTargetAtTime(active?this.effectsVolume:0,this.context.currentTime,.006);if(!active){for(const source of this.sources){try{source.stop();}catch{}}this.sources.clear();this.nextTime=0;}}
 }

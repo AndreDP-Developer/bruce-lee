@@ -23,3 +23,7 @@ Locally hosted DM Sans fonts. See `public/fonts/OFL.txt` for the SIL Open Font L
 ## New presentation
 
 The browser interface, Three.js scenery, input adapter, practice selector and integration tests were created for this fan project. No license in this repository overrides the ownership of the original game or other third-party components.
+
+## Jade Forest Path
+
+`public/audio/jade-forest-path.mp3` was supplied by the project owner for use as the game’s background music. Ownership remains with its creator; no broader reuse license is granted here.

@@ -11,3 +11,8 @@ test('pulse width and noise pitch alter the generated effect instead of sharing 
  assert.notDeepEqual(render(64,5000,512),render(64,5000,2048));assert.notDeepEqual(render(128,2000,0),render(128,10000,0));
  const s=new SidOutput();for(let i=0;i<19656;i++)s.tick();assert.equal(s.take().length,882);assert.equal(s.take().length,0);
 });
+import {BackgroundTrack} from '../src/music.js';
+test('supplied music pauses, resumes and mutes independently of native effects',()=>{
+ const media={volume:0,currentTime:37,play(){this.plays=(this.plays||0)+1;return Promise.resolve();},pause(){this.pauses=(this.pauses||0)+1;}};
+ const track=new BackgroundTrack('music.mp3',()=>media);track.unlock();assert.equal(media.loop,true);track.update(true,.12);assert.equal(media.volume,.12);assert.equal(media.plays,1);track.update(true,.12);assert.equal(media.plays,1);track.update(false,.12);assert.equal(media.pauses,1);assert.equal(media.currentTime,37);track.update(true,.12);assert.equal(media.plays,2);track.update(true,0);assert.equal(media.pauses,2);
+});
