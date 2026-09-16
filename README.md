@@ -40,7 +40,7 @@ The presentation is new Three.js code, using the Three.js build copied from the 
 
 `public/data/start.json` is a native single-player starting checkpoint, with the trainer disabled and five lives. The game banks out system ROMs; BASIC, KERNAL and character ROM files are not included. The Three.js renderer uses the original 320 × 176 playfield. Original mode disables the atmospheric scenery; pixel smoothing is a separate option.
 
-Sound is a lightweight Web Audio interpretation of the game's SID writes. The runtime is not cycle-exact and SID filtering is not reproduced, so audio and timing are not claimed to be hardware-perfect.
+Sound uses softened, low-pass-filtered effects driven by the game’s SID writes, with actual noise for noise events. An original evolving pentatonic score combines gentle plucked strings, flute-like tones and sparse bell accompaniment at 76 BPM. Phrase contours, harmony, voicing and rests vary rather than repeating a short loop. Settings provide separate music/effects volumes and a music switch; all audio pauses with gameplay. No audio is copied from YouTube. The requested sound reference is [this C64 longplay](https://www.youtube.com/watch?v=gRGGWWvvO0o); matching its soundtrack by ear has not been verified. The runtime is not cycle-exact and SID filtering is not reproduced, so audio and timing are not claimed to be hardware-perfect.
 
 ## Verification
 

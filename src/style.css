@@ -7,3 +7,5 @@
 @media(min-width:1001px){.shell{max-width:min(1272px,calc((100vh - 275px)*20/11 + 88px))}.masthead{height:84px}.hud{height:56px}.stagebar{min-height:56px}.intro h1{font-size:clamp(55px,7vw,105px)}}
 .intro h1 b{left:190px;bottom:0;font-size:20px;letter-spacing:3px;transform:none}
 @media(max-width:640px){.intro h1{font-size:40px;line-height:.95;margin:10px 0}.intro h1>span{display:inline}.intro h1 b,.edition{display:none}.intro>p{margin:7px 0}.intro .start-hint{margin-top:7px}.overlay{padding:5%}.primary{margin-top:10px}}
+
+.audio-heading{font-family:Georgia,serif;font-size:21px;font-weight:400;margin:26px 0 0}.volume input{width:48%;height:22px}.volume small{font-variant-numeric:tabular-nums}

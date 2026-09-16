@@ -4,12 +4,12 @@ import {Sound} from './audio.js';
 const $=id=>document.getElementById(id),keys=new Set(),touch=new Set();
 const readStorage=(key,fallback)=>{try{return JSON.parse(localStorage.getItem(key))??fallback;}catch{return fallback;}};
 const saveStorage=(key,value)=>{try{localStorage.setItem(key,JSON.stringify(value));}catch{}};
-let settings={atmosphere:true,soft:false,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,scanlines:true,...readStorage('bruce-lee-settings',{})};
+let settings={atmosphere:true,soft:false,reduced:matchMedia('(prefers-reduced-motion: reduce)').matches,scanlines:true,music:true,musicVolume:45,effectsVolume:45,...readStorage('bruce-lee-settings',{})};
 let best=readStorage('bruce-lee-best',0),game,scene,sound=new Sound(),lastState='',lastRoom=-1,lastScore=0,lastLives=5,acc=0,last=0,toastTimer,practicePreview=false;
 sound.enabled=readStorage('bruce-lee-sound',true);
 function toast(message){$('toast').textContent=message;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,3300);}
 function clearInput(){keys.clear();touch.clear();document.querySelectorAll('.pressed').forEach(b=>b.classList.remove('pressed'));game?.clearInput();}
-function applySettings(){scene?.settings(settings);for(const id of ['atmosphere','soft','reduced','scanlines'])$(id).checked=!!settings[id];document.querySelector('.scanlines').hidden=!settings.scanlines;saveStorage('bruce-lee-settings',settings);}
+function applySettings(){scene?.settings(settings);sound.musicEnabled=settings.music;sound.musicVolume=settings.musicVolume/100;sound.effectsVolume=settings.effectsVolume/100;$('music').checked=settings.music;for(const id of ['musicVolume','effectsVolume']){$(id).value=settings[id];$(id+'-value').textContent=settings[id]+'%';}for(const id of ['atmosphere','soft','reduced','scanlines'])$(id).checked=!!settings[id];document.querySelector('.scanlines').hidden=!settings.scanlines;saveStorage('bruce-lee-settings',settings);}
 function soundButton(){const b=$('sound');b.innerHTML=`Sound ${sound.enabled?'on':'off'} <span>${sound.enabled?'♪':'♩'}</span>`;b.setAttribute('aria-pressed',String(sound.enabled));b.setAttribute('aria-label',`Sound ${sound.enabled?'on':'off'}`);}
 function toggleSound(){sound.enabled=!sound.enabled;sound.unlock().catch(()=>{});saveStorage('bruce-lee-sound',sound.enabled);soundButton();}
 function pause(){if(!game)return;if(game.state==='playing'){game.pause();clearInput();practicePreview=false;}else if(game.state==='paused'){game.resume();sound.unlock().catch(()=>{});}updateHud();}
@@ -38,6 +38,8 @@ document.querySelectorAll('[data-key]').forEach(b=>{b.addEventListener('pointerd
 $('start').onclick=play;$('pause').onclick=pause;$('sound').onclick=toggleSound;$('fullscreen').onclick=fullscreen;$('help').onclick=()=>showDialog('help-dialog');$('settings').onclick=()=>showDialog('settings-dialog');$('rooms').onclick=()=>showDialog('rooms-dialog');
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());document.querySelectorAll('dialog').forEach(d=>{d.addEventListener('close',()=>{clearInput();lastState='';updateHud();});d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}});});
 for(const id of ['atmosphere','soft','reduced','scanlines'])$(id).onchange=()=>{settings[id]=$(id).checked;applySettings();};
+$('music').onchange=()=>{settings.music=$('music').checked;applySettings();};
+for(const id of ['musicVolume','effectsVolume'])$(id).oninput=()=>{settings[id]=Number($(id).value);applySettings();};
 $('restart').onclick=()=>{game.reset();practicePreview=false;lastState='';lastRoom=-1;$('settings-dialog').close();updateHud();};
 $('invincible').onchange=()=>{game.invincible=$('invincible').checked;if(game.invincible)game.assisted=true;updateHud();};
 function selectRoom(id){game.selectRoom(id);practicePreview=true;game.invincible=$('invincible').checked;lastState='';lastRoom=-1;$('rooms-dialog').close();clearInput();toast('Practice room ready · press Enter to play');updateHud();}
